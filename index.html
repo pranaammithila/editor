@@ -10,8 +10,8 @@
         .news-item { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
         .news-item img { max-width: 100%; height: auto; }
         button { margin: 5px; }
-        input[type="text"] { width: 80%; padding: 10px; font-size: 16px; }
-        textarea { width: 80%; height: 150px; padding: 10px; font-size: 16px; }
+        input[type="text"], textarea { width: 90%; padding: 10px; font-size: 16px; }
+        textarea { height: 200px; }
     </style>
 </head>
 <body>
@@ -20,7 +20,9 @@
     <textarea id="fullNews" placeholder="Enter Full News"></textarea><br>
     <input type="file" id="imageUpload" accept="image/*"><br>
     <input type="text" id="photoNumber" placeholder="Enter Photo Number"><br>
+    <input type="text" id="newsUrl" placeholder="Enter News URL (Optional)"><br>
     <button onclick="addNews()">Add News</button>
+    <button onclick="sendAllNews()">Send All News</button>
     <div class="news-container" id="newsContainer"></div>
 
     <script>
@@ -30,6 +32,7 @@
             let headline = document.getElementById('headline').value;
             let fullNews = document.getElementById('fullNews').value;
             let photoNumber = document.getElementById('photoNumber').value.trim();
+            let newsUrl = document.getElementById('newsUrl').value.trim();
             let imageFile = document.getElementById('imageUpload').files[0];
 
             if (!headline || !fullNews) {
@@ -45,14 +48,14 @@
             let reader = new FileReader();
             reader.onload = function(event) {
                 let imageUrl = imageFile ? event.target.result : null;
-                let newsItem = { headline, fullNews, photoNumber, imageUrl };
+                let newsItem = { headline, fullNews, photoNumber, newsUrl, imageUrl };
                 newsList.push(newsItem);
                 localStorage.setItem('newsList', JSON.stringify(newsList));
                 displayNews();
             };
             if (imageFile) reader.readAsDataURL(imageFile);
             else {
-                let newsItem = { headline, fullNews, photoNumber, imageUrl: null };
+                let newsItem = { headline, fullNews, photoNumber, newsUrl, imageUrl: null };
                 newsList.push(newsItem);
                 localStorage.setItem('newsList', JSON.stringify(newsList));
                 displayNews();
@@ -67,10 +70,12 @@
                     <div class="news-item">
                         <h3>${news.headline}</h3>
                         <p>${news.fullNews}</p>
+                        ${news.newsUrl ? `<p><a href="${news.newsUrl}" target="_blank">Read more</a></p>` : ''}
                         ${news.imageUrl ? `<img src="${news.imageUrl}" alt="News Image">` : ''}
                         ${news.photoNumber ? `<p><b>Photo Number:</b> ${news.photoNumber}</p>` : ''}
                         <button onclick="copyText('${news.fullNews}')">Copy Text</button>
                         ${news.imageUrl ? `<button onclick="downloadImage('${news.imageUrl}', '${news.photoNumber}')">Download Image</button>` : ''}
+                        <button onclick="sendEmail('${news.headline}', '${news.fullNews}', '${news.newsUrl}', '${news.imageUrl}')">Send Email</button>
                         <button onclick="deleteNews(${index})">Delete</button>
                     </div>
                 `;
@@ -96,6 +101,28 @@
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
+        }
+
+        function sendEmail(headline, fullNews, newsUrl, imageUrl) {
+            let emailBody = `Headline: ${headline}%0D%0A%0D%0A${fullNews}`;
+            if (newsUrl) emailBody += `%0D%0ARead more: ${newsUrl}`;
+            if (imageUrl) emailBody += `%0D%0AImage: ${imageUrl}`;
+            
+            let mailtoLink = `mailto:?subject=${encodeURIComponent(headline)}&body=${emailBody}`;
+            window.location.href = mailtoLink;
+        }
+
+        function sendAllNews() {
+            let emailBody = "";
+            newsList.forEach(news => {
+                emailBody += `Headline: ${news.headline}%0D%0A${news.fullNews}%0D%0A`;
+                if (news.newsUrl) emailBody += `Read more: ${news.newsUrl}%0D%0A`;
+                if (news.imageUrl) emailBody += `Image: ${news.imageUrl}%0D%0A`;
+                emailBody += `%0D%0A----------------------%0D%0A`;
+            });
+            
+            let mailtoLink = `mailto:?subject=All News&body=${emailBody}`;
+            window.location.href = mailtoLink;
         }
 
         displayNews();
