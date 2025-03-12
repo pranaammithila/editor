@@ -8,21 +8,27 @@
         body { font-family: Arial, sans-serif; margin: 20px; }
         .news-container { margin-top: 20px; }
         .news-item { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
-        .news-item img { max-width: 100%; height: auto; }
         button { margin: 5px; }
         input[type="text"], textarea { width: 90%; padding: 10px; font-size: 16px; }
         textarea { height: 200px; }
+        .replace-section { margin: 20px 0; border-top: 1px solid #ccc; padding-top: 20px; }
     </style>
 </head>
 <body>
     <h2>News Management System</h2>
     <input type="text" id="headline" placeholder="Enter News Headline"><br>
     <textarea id="fullNews" placeholder="Enter Full News"></textarea><br>
-    <input type="file" id="imageUpload" accept="image/*"><br>
-    <input type="text" id="photoNumber" placeholder="Enter Photo Number"><br>
     <input type="text" id="newsUrl" placeholder="Enter News URL (Optional)"><br>
     <button onclick="addNews()">Add News</button>
     <button onclick="sendAllNews()">Send All News</button>
+
+    <div class="replace-section">
+        <h3>Word Replacement Tool</h3>
+        <input type="text" id="findWord" placeholder="Word to replace">
+        <input type="text" id="replaceWord" placeholder="Replacement word">
+        <button onclick="replaceWords()">Replace Words</button>
+    </div>
+
     <div class="news-container" id="newsContainer"></div>
 
     <script>
@@ -31,35 +37,17 @@
         function addNews() {
             let headline = document.getElementById('headline').value;
             let fullNews = document.getElementById('fullNews').value;
-            let photoNumber = document.getElementById('photoNumber').value.trim();
             let newsUrl = document.getElementById('newsUrl').value.trim();
-            let imageFile = document.getElementById('imageUpload').files[0];
 
             if (!headline || !fullNews) {
                 alert("Headline and Full News are required!");
                 return;
             }
 
-            if (imageFile && !photoNumber) {
-                alert("Photo number is required if image is uploaded!");
-                return;
-            }
-
-            let reader = new FileReader();
-            reader.onload = function(event) {
-                let imageUrl = imageFile ? event.target.result : null;
-                let newsItem = { headline, fullNews, photoNumber, newsUrl, imageUrl };
-                newsList.push(newsItem);
-                localStorage.setItem('newsList', JSON.stringify(newsList));
-                displayNews();
-            };
-            if (imageFile) reader.readAsDataURL(imageFile);
-            else {
-                let newsItem = { headline, fullNews, photoNumber, newsUrl, imageUrl: null };
-                newsList.push(newsItem);
-                localStorage.setItem('newsList', JSON.stringify(newsList));
-                displayNews();
-            }
+            let newsItem = { headline, fullNews, newsUrl };
+            newsList.push(newsItem);
+            localStorage.setItem('newsList', JSON.stringify(newsList));
+            displayNews();
         }
 
         function displayNews() {
@@ -71,15 +59,37 @@
                         <h3>${news.headline}</h3>
                         <p>${news.fullNews}</p>
                         ${news.newsUrl ? `<p><a href="${news.newsUrl}" target="_blank">Read more</a></p>` : ''}
-                        ${news.imageUrl ? `<img src="${news.imageUrl}" alt="News Image">` : ''}
-                        ${news.photoNumber ? `<p><b>Photo Number:</b> ${news.photoNumber}</p>` : ''}
                         <button onclick="copyText('${news.fullNews}')">Copy Text</button>
-                        ${news.imageUrl ? `<button onclick="downloadImage('${news.imageUrl}', '${news.photoNumber}')">Download Image</button>` : ''}
-                        <button onclick="sendEmail('${news.headline}', '${news.fullNews}', '${news.newsUrl}', '${news.imageUrl}')">Send Email</button>
+                        <button onclick="sendEmail('${news.headline}', '${news.fullNews}', '${news.newsUrl}')">Send Email</button>
                         <button onclick="deleteNews(${index})">Delete</button>
                     </div>
                 `;
             });
+        }
+
+        function replaceWords() {
+            const find = document.getElementById('findWord').value;
+            const replace = document.getElementById('replaceWord').value;
+            
+            if (!find) {
+                alert("Please enter a word to find!");
+                return;
+            }
+
+            const regex = new RegExp(escapeRegExp(find), 'gi');
+            
+            newsList = newsList.map(news => ({
+                ...news,
+                headline: news.headline.replace(regex, replace),
+                fullNews: news.fullNews.replace(regex, replace)
+            }));
+            
+            localStorage.setItem('newsList', JSON.stringify(newsList));
+            displayNews();
+        }
+
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         }
 
         function copyText(text) {
@@ -94,19 +104,9 @@
             displayNews();
         }
 
-        function downloadImage(imageSrc, photoNumber) {
-            let link = document.createElement('a');
-            link.href = imageSrc;
-            link.download = `${photoNumber || 'image'}.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function sendEmail(headline, fullNews, newsUrl, imageUrl) {
+        function sendEmail(headline, fullNews, newsUrl) {
             let emailBody = `Headline: ${headline}%0D%0A%0D%0A${fullNews}`;
             if (newsUrl) emailBody += `%0D%0ARead more: ${newsUrl}`;
-            if (imageUrl) emailBody += `%0D%0AImage: ${imageUrl}`;
             
             let mailtoLink = `mailto:?subject=${encodeURIComponent(headline)}&body=${emailBody}`;
             window.location.href = mailtoLink;
@@ -117,7 +117,6 @@
             newsList.forEach(news => {
                 emailBody += `Headline: ${news.headline}%0D%0A${news.fullNews}%0D%0A`;
                 if (news.newsUrl) emailBody += `Read more: ${news.newsUrl}%0D%0A`;
-                if (news.imageUrl) emailBody += `Image: ${news.imageUrl}%0D%0A`;
                 emailBody += `%0D%0A----------------------%0D%0A`;
             });
             
