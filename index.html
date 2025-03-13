@@ -12,6 +12,9 @@
         input[type="text"], textarea { width: 90%; padding: 10px; font-size: 16px; }
         textarea { height: 200px; }
         .replace-section { margin: 20px 0; border-top: 1px solid #ccc; padding-top: 20px; }
+        .image-section { margin: 20px 0; border-top: 1px solid #ccc; padding-top: 20px; }
+        #previewImage { max-width: 300px; margin: 10px 0; }
+        .image-controls { margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -29,11 +32,28 @@
         <button onclick="replaceWords()">Replace Words</button>
     </div>
 
+    <div class="image-section">
+        <h3>Image Uploader & Editor</h3>
+        <input type="file" id="imageInput" accept="image/*" onchange="previewImage()">
+        <input type="text" id="imageNumber" placeholder="Enter image number for download">
+        <div>
+            <img id="previewImage" src="" alt="Image Preview" style="display: none;">
+        </div>
+        <div class="image-controls">
+            <button onclick="enhanceImage()">Enhance Image</button>
+            <button onclick="increasePixels()">Increase Pixels</button>
+            <button onclick="downloadImage()">Download as JPG</button>
+        </div>
+    </div>
+
     <div class="news-container" id="newsContainer"></div>
 
     <script>
         let newsList = JSON.parse(localStorage.getItem('newsList')) || [];
-        
+        let originalImageData = null;
+        let canvas = document.createElement('canvas');
+        let ctx = canvas.getContext('2d');
+
         function addNews() {
             let headline = document.getElementById('headline').value;
             let fullNews = document.getElementById('fullNews').value;
@@ -107,7 +127,6 @@
         function sendEmail(headline, fullNews, newsUrl) {
             let emailBody = `Headline: ${headline}%0D%0A%0D%0A${fullNews}`;
             if (newsUrl) emailBody += `%0D%0ARead more: ${newsUrl}`;
-            
             let mailtoLink = `mailto:?subject=${encodeURIComponent(headline)}&body=${emailBody}`;
             window.location.href = mailtoLink;
         }
@@ -119,12 +138,75 @@
                 if (news.newsUrl) emailBody += `Read more: ${news.newsUrl}%0D%0A`;
                 emailBody += `%0D%0A----------------------%0D%0A`;
             });
-            
             let mailtoLink = `mailto:?subject=All News&body=${emailBody}`;
             window.location.href = mailtoLink;
+        }
+
+        // Image handling functions
+        function previewImage() {
+            const file = document.getElementById('imageInput').files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const img = new Image();
+                    img.onload = function() {
+                        originalImageData = img;
+                        document.getElementById('previewImage').src = e.target.result;
+                        document.getElementById('previewImage').style.display = 'block';
+                        canvas.width = img.width;
+                        canvas.height = img.height;
+                        ctx.drawImage(img, 0, 0);
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        function enhanceImage() {
+            if (!originalImageData) {
+                alert("Please upload an image first!");
+                return;
+            }
+            // Basic enhancement (increase contrast)
+            ctx.filter = 'contrast(1.4) brightness(1.1)';
+            ctx.drawImage(originalImageData, 0, 0);
+            updatePreview();
+        }
+
+        function increasePixels() {
+            if (!originalImageData) {
+                alert("Please upload an image first!");
+                return;
+            }
+            // Increase size by 50%
+            const newWidth = originalImageData.width * 1.5;
+            const newHeight = originalImageData.height * 1.5;
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+            ctx.drawImage(originalImageData, 0, 0, newWidth, newHeight);
+            originalImageData.width = newWidth;
+            originalImageData.height = newHeight;
+            updatePreview();
+        }
+
+        function updatePreview() {
+            document.getElementById('previewImage').src = canvas.toDataURL('image/jpeg');
+        }
+
+        function downloadImage() {
+            if (!originalImageData) {
+                alert("Please upload an image first!");
+                return;
+            }
+            const imageNumber = document.getElementById('imageNumber').value || 'image';
+            const link = document.createElement('a');
+            link.download = `${imageNumber}.jpg`;
+            link.href = canvas.toDataURL('image/jpeg', 1.0);
+            link.click();
         }
 
         displayNews();
     </script>
 </body>
-</html> 
+</html>
