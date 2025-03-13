@@ -1,238 +1,104 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>News Management System</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        .news-container, .image-container { margin-top: 20px; }
-        .news-item, .image-item { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
-        button { margin: 5px; }
-        input[type="text"], textarea, input[type="number"] { width: 90%; padding: 10px; font-size: 16px; }
-        input[type="file"] { margin: 10px 0; }
-        textarea { height: 200px; }
-        .replace-section, .image-section { margin: 20px 0; border-top: 1px solid #ccc; padding-top: 20px; }
-        .image-preview { max-width: 200px; margin: 10px 0; }
-    </style>
-</head>
-<body>
-    <h2>News Management System</h2>
-    <input type="text" id="headline" placeholder="Enter News Headline"><br>
-    <textarea id="fullNews" placeholder="Enter Full News"></textarea><br>
-    <input type="text" id="newsUrl" placeholder="Enter News URL (Optional)"><br>
-    <button onclick="addNews()">Add News</button>
-    <button onclick="sendAllNews()">Send All News</button>
+<div class="replace-section">
+    <h3>Word Replacement Tool</h3>
+    <input type="text" id="findWord" placeholder="Word to replace">
+    <input type="text" id="replaceWord" placeholder="Replacement word">
+    <button onclick="replaceWords()">Replace Words</button>
+</div>
 
-    <div class="replace-section">
-        <h3>Word Replacement Tool</h3>
-        <input type="text" id="findWord" placeholder="Word to replace">
-        <input type="text" id="replaceWord" placeholder="Replacement word">
-        <button onclick="replaceWords()">Replace Words</button>
-    </div>
+<div class="news-container" id="newsContainer"></div>
 
-    <div class="image-section">
-        <h3>Image Management</h3>
-        <input type="file" id="imageUpload" accept="image/*"><br>
-        <input type="number" id="imageNumber" placeholder="Enter Image Number for Download" min="1"><br>
-        <button onclick="addImage()">Add Image</button>
-        <div class="image-container" id="imageContainer"></div>
-    </div>
+<script>
+    let newsList = JSON.parse(localStorage.getItem('newsList')) || [];
+    
+    function addNews() {
+        let headline = document.getElementById('headline').value;
+        let fullNews = document.getElementById('fullNews').value;
+        let newsUrl = document.getElementById('newsUrl').value.trim();
 
-    <div class="news-container" id="newsContainer"></div>
-
-    <script>
-        let newsList = JSON.parse(localStorage.getItem('newsList')) || [];
-        let imageList = JSON.parse(localStorage.getItem('imageList')) || [];
-        
-        // News Functions
-        function addNews() {
-            let headline = document.getElementById('headline').value;
-            let fullNews = document.getElementById('fullNews').value;
-            let newsUrl = document.getElementById('newsUrl').value.trim();
-
-            if (!headline || !fullNews) {
-                alert("Headline and Full News are required!");
-                return;
-            }
-
-            let newsItem = { headline, fullNews, newsUrl };
-            newsList.push(newsItem);
-            localStorage.setItem('newsList', JSON.stringify(newsList));
-            displayNews();
-            clearNewsInputs();
+        if (!headline || !fullNews) {
+            alert("Headline and Full News are required!");
+            return;
         }
 
-        function displayNews() {
-            let container = document.getElementById('newsContainer');
-            container.innerHTML = '';
-            newsList.forEach((news, index) => {
-                container.innerHTML += `
-                    <div class="news-item">
-                        <h3>${news.headline}</h3>
-                        <p>${news.fullNews}</p>
-                        ${news.newsUrl ? `<p><a href="${news.newsUrl}" target="_blank">Read more</a></p>` : ''}
-                        <button onclick="copyText('${news.headline}\\n\\n${news.fullNews}${news.newsUrl ? '\\nRead more: ' + news.newsUrl : ''}')">Copy Full Text</button>
-                        <button onclick="sendEmail('${news.headline}', '${news.fullNews}', '${news.newsUrl}')">Send Email</button>
-                        <button onclick="deleteNews(${index})">Delete</button>
-                    </div>
-                `;
-            });
-        }
-
-        // Image Functions
-        function addImage() {
-            let imageFile = document.getElementById('imageUpload').files[0];
-            let imageNumber = document.getElementById('imageNumber').value;
-
-            if (!imageFile) {
-                alert("Please select an image!");
-                return;
-            }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                let imageItem = {
-                    image: e.target.result,
-                    imageNumber: imageNumber || Date.now()
-                };
-                imageList.push(imageItem);
-                localStorage.setItem('imageList', JSON.stringify(imageList));
-                displayImages();
-                clearImageInputs();
-            };
-            reader.readAsDataURL(imageFile);
-        }
-
-        function displayImages() {
-            let container = document.getElementById('imageContainer');
-            container.innerHTML = '';
-            imageList.forEach((item, index) => {
-                container.innerHTML += `
-                    <div class="image-item">
-                        <img src="${item.image}" class="image-preview" alt="Uploaded Image">
-                        <br>
-                        <button onclick="downloadImage('${item.image}', '${item.imageNumber}')">Download Image</button>
-                        <button onclick="enhanceImage(${index})">Enhance Image</button>
-                        <button onclick="deleteImage(${index})">Delete</button>
-                    </div>
-                `;
-            });
-        }
-
-        function downloadImage(imageData, number) {
-            const link = document.createElement('a');
-            link.href = imageData;
-            link.download = `image_${number}.jpg`;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-        }
-
-        function enhanceImage(index) {
-            const img = new Image();
-            img.src = imageList[index].image;
-            img.onload = function() {
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = img.width;
-                canvas.height = img.height;
-                
-                ctx.drawImage(img, 0, 0);
-                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                const data = imageData.data;
-                
-                for (let i = 0; i < data.length; i += 4) {
-                    data[i] = Math.min(255, data[i] * 1.2);     // Red
-                    data[i + 1] = Math.min(255, data[i + 1] * 1.2); // Green
-                    data[i + 2] = Math.min(255, data[i + 2] * 1.2); // Blue
-                }
-                
-                ctx.putImageData(imageData, 0, 0);
-                imageList[index].image = canvas.toDataURL('image/jpeg');
-                localStorage.setItem('imageList', JSON.stringify(imageList));
-                displayImages();
-            };
-        }
-
-        function deleteImage(index) {
-            imageList.splice(index, 1);
-            localStorage.setItem('imageList', JSON.stringify(imageList));
-            displayImages();
-        }
-
-        // Utility Functions
-        function clearNewsInputs() {
-            document.getElementById('headline').value = '';
-            document.getElementById('fullNews').value = '';
-            document.getElementById('newsUrl').value = '';
-        }
-
-        function clearImageInputs() {
-            document.getElementById('imageUpload').value = '';
-            document.getElementById('imageNumber').value = '';
-        }
-
-        function replaceWords() {
-            const find = document.getElementById('findWord').value;
-            const replace = document.getElementById('replaceWord').value;
-            
-            if (!find) {
-                alert("Please enter a word to find!");
-                return;
-            }
-
-            const regex = new RegExp(escapeRegExp(find), 'gi');
-            
-            newsList = newsList.map(news => ({
-                ...news,
-                headline: news.headline.replace(regex, replace),
-                fullNews: news.fullNews.replace(regex, replace)
-            }));
-            
-            localStorage.setItem('newsList', JSON.stringify(newsList));
-            displayNews();
-        }
-
-        function escapeRegExp(string) {
-            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        }
-
-        function copyText(text) {
-            navigator.clipboard.writeText(text).then(() => {
-                alert("News copied to clipboard!");
-            });
-        }
-
-        function deleteNews(index) {
-            newsList.splice(index, 1);
-            localStorage.setItem('newsList', JSON.stringify(newsList));
-            displayNews();
-        }
-
-        function sendEmail(headline, fullNews, newsUrl) {
-            let emailBody = `Headline: ${headline}%0D%0A%0D%0A${fullNews}`;
-            if (newsUrl) emailBody += `%0D%0ARead more: ${newsUrl}`;
-            
-            let mailtoLink = `mailto:?subject=${encodeURIComponent(headline)}&body=${emailBody}`;
-            window.location.href = mailtoLink;
-        }
-
-        function sendAllNews() {
-            let emailBody = "";
-            newsList.forEach(news => {
-                emailBody += `Headline: ${news.headline}%0D%0A${news.fullNews}%0D%0A`;
-                if (news.newsUrl) emailBody += `Read more: ${news.newsUrl}%0D%0A`;
-                emailBody += `%0D%0A----------------------%0D%0A`;
-            });
-            
-            let mailtoLink = `mailto:?subject=All News&body=${emailBody}`;
-            window.location.href = mailtoLink;
-        }
-
-        // Initial display
+        let newsItem = { headline, fullNews, newsUrl };
+        newsList.push(newsItem);
+        localStorage.setItem('newsList', JSON.stringify(newsList));
         displayNews();
-        displayImages();
-    </script>
-</body>
-</html>
+    }
+
+    function displayNews() {
+        let container = document.getElementById('newsContainer');
+        container.innerHTML = '';
+        newsList.forEach((news, index) => {
+            container.innerHTML += `
+                <div class="news-item">
+                    <h3>${news.headline}</h3>
+                    <p>${news.fullNews}</p>
+                    ${news.newsUrl ? `<p><a href="${news.newsUrl}" target="_blank">Read more</a></p>` : ''}
+                    <button onclick="copyText('${news.fullNews}')">Copy Text</button>
+                    <button onclick="sendEmail('${news.headline}', '${news.fullNews}', '${news.newsUrl}')">Send Email</button>
+                    <button onclick="deleteNews(${index})">Delete</button>
+                </div>
+            `;
+        });
+    }
+
+    function replaceWords() {
+        const find = document.getElementById('findWord').value;
+        const replace = document.getElementById('replaceWord').value;
+        
+        if (!find) {
+            alert("Please enter a word to find!");
+            return;
+        }
+
+        const regex = new RegExp(escapeRegExp(find), 'gi');
+        
+        newsList = newsList.map(news => ({
+            ...news,
+            headline: news.headline.replace(regex, replace),
+            fullNews: news.fullNews.replace(regex, replace)
+        }));
+        
+        localStorage.setItem('newsList', JSON.stringify(newsList));
+        displayNews();
+    }
+
+    function escapeRegExp(string) {
+        return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    function copyText(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            alert("News copied to clipboard!");
+        });
+    }
+
+    function deleteNews(index) {
+        newsList.splice(index, 1);
+        localStorage.setItem('newsList', JSON.stringify(newsList));
+        displayNews();
+    }
+
+    function sendEmail(headline, fullNews, newsUrl) {
+        let emailBody = `Headline: ${headline}%0D%0A%0D%0A${fullNews}`;
+        if (newsUrl) emailBody += `%0D%0ARead more: ${newsUrl}`;
+        
+        let mailtoLink = `mailto:?subject=${encodeURIComponent(headline)}&body=${emailBody}`;
+        window.location.href = mailtoLink;
+    }
+
+    function sendAllNews() {
+        let emailBody = "";
+        newsList.forEach(news => {
+            emailBody += `Headline: ${news.headline}%0D%0A${news.fullNews}%0D%0A`;
+            if (news.newsUrl) emailBody += `Read more: ${news.newsUrl}%0D%0A`;
+            emailBody += `%0D%0A----------------------%0D%0A`;
+        });
+        
+        let mailtoLink = `mailto:?subject=All News&body=${emailBody}`;
+        window.location.href = mailtoLink;
+    }
+
+    displayNews();
+                              </script>
