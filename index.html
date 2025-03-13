@@ -9,9 +9,11 @@
         .news-container { margin-top: 20px; }
         .news-item { border: 1px solid #ccc; padding: 10px; margin: 10px 0; }
         button { margin: 5px; }
-        input[type="text"], textarea { width: 90%; padding: 10px; font-size: 16px; }
+        input[type="text"], textarea, input[type="number"] { width: 90%; padding: 10px; font-size: 16px; }
+        input[type="file"] { margin: 10px 0; }
         textarea { height: 200px; }
         .replace-section { margin: 20px 0; border-top: 1px solid #ccc; padding-top: 20px; }
+        .image-preview { max-width: 200px; margin: 10px 0; }
     </style>
 </head>
 <body>
@@ -19,6 +21,8 @@
     <input type="text" id="headline" placeholder="Enter News Headline"><br>
     <textarea id="fullNews" placeholder="Enter Full News"></textarea><br>
     <input type="text" id="newsUrl" placeholder="Enter News URL (Optional)"><br>
+    <input type="file" id="imageUpload" accept="image/*"><br>
+    <input type="number" id="imageNumber" placeholder="Enter Image Number for Download" min="1"><br>
     <button onclick="addNews()">Add News</button>
     <button onclick="sendAllNews()">Send All News</button>
 
@@ -38,6 +42,8 @@
             let headline = document.getElementById('headline').value;
             let fullNews = document.getElementById('fullNews').value;
             let newsUrl = document.getElementById('newsUrl').value.trim();
+            let imageFile = document.getElementById('imageUpload').files[0];
+            let imageNumber = document.getElementById('imageNumber').value;
 
             if (!headline || !fullNews) {
                 alert("Headline and Full News are required!");
@@ -45,9 +51,32 @@
             }
 
             let newsItem = { headline, fullNews, newsUrl };
-            newsList.push(newsItem);
-            localStorage.setItem('newsList', JSON.stringify(newsList));
-            displayNews();
+            
+            if (imageFile) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    newsItem.image = e.target.result;
+                    newsItem.imageNumber = imageNumber || Date.now(); // Use timestamp if no number provided
+                    newsList.push(newsItem);
+                    localStorage.setItem('newsList', JSON.stringify(newsList));
+                    displayNews();
+                    clearInputs();
+                };
+                reader.readAsDataURL(imageFile);
+            } else {
+                newsList.push(newsItem);
+                localStorage.setItem('newsList', JSON.stringify(newsList));
+                displayNews();
+                clearInputs();
+            }
+        }
+
+        function clearInputs() {
+            document.getElementById('headline').value = '';
+            document.getElementById('fullNews').value = '';
+            document.getElementById('newsUrl').value = '';
+            document.getElementById('imageUpload').value = '';
+            document.getElementById('imageNumber').value = '';
         }
 
         function displayNews() {
@@ -59,12 +88,55 @@
                         <h3>${news.headline}</h3>
                         <p>${news.fullNews}</p>
                         ${news.newsUrl ? `<p><a href="${news.newsUrl}" target="_blank">Read more</a></p>` : ''}
-                        <button onclick="copyText('${news.fullNews}')">Copy Text</button>
+                        ${news.image ? `
+                            <img src="${news.image}" class="image-preview" alt="News Image">
+                            <br>
+                            <button onclick="downloadImage('${news.image}', '${news.imageNumber || index}')">Download Image</button>
+                            <button onclick="enhanceImage('${news.image}', ${index})">Enhance Image</button>
+                        ` : ''}
+                        <button onclick="copyText('${news.headline}\\n\\n${news.fullNews}${news.newsUrl ? '\\nRead more: ' + news.newsUrl : ''}')">Copy Full Text</button>
                         <button onclick="sendEmail('${news.headline}', '${news.fullNews}', '${news.newsUrl}')">Send Email</button>
                         <button onclick="deleteNews(${index})">Delete</button>
                     </div>
                 `;
             });
+        }
+
+        function downloadImage(imageData, number) {
+            const link = document.createElement('a');
+            link.href = imageData;
+            link.download = `news_image_${number}.jpg`;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        function enhanceImage(imageData, index) {
+            // Basic image enhancement (brightness/contrast adjustment)
+            const img = new Image();
+            img.src = imageData;
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                
+                ctx.drawImage(img, 0, 0);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const data = imageData.data;
+                
+                // Simple brightness/contrast enhancement
+                for (let i = 0; i < data.length; i += 4) {
+                    data[i] = Math.min(255, data[i] * 1.2);     // Red
+                    data[i + 1] = Math.min(255, data[i + 1] * 1.2); // Green
+                    data[i + 2] = Math.min(255, data[i + 2] * 1.2); // Blue
+                }
+                
+                ctx.putImageData(imageData, 0, 0);
+                newsList[index].image = canvas.toDataURL('image/jpeg');
+                localStorage.setItem('newsList', JSON.stringify(newsList));
+                displayNews();
+            };
         }
 
         function replaceWords() {
